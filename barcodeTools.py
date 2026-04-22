@@ -52,26 +52,26 @@ def init_db(database: str = "GameLibrary.sqlite"):
     conn.commit()
     conn.close()
 
-
-def ask_used_status(name: str = "this game", system: str = "") -> tuple[str, int]:
-    while True:
-        used = input(f"Is '{name}' for {system} used? (y/n): ").strip().lower()
-        if used in ("y", "n"):
-            return used, 1 if used == "y" else 0
-        print("Invalid input. Please enter 'y' for yes or 'n' for no.")
-
-
-def process_barcode(barcode: str) -> tuple[str, str, str]:
+def process_barcode(barcode: str, system: str = "", quality: str = "") -> tuple[str, str, str]:
     conn = get_connection()
     c = conn.cursor()
 
-    used, used_value = ask_used_status("this game", "unknown system")
+    while not quality:
+        quality = input("Is this game Used or Sealed?").strip().lower()
+        if quality not in ["used", "sealed"]:
+            print("Invalid input. Please enter 'Used' or 'Sealed'.")
+            quality = ""
+
+    if quality == "used":
+        used = 1
+    else:
+        used = 0
 
     c.execute("""
         SELECT name, system, quantity
         FROM GameLibrary
         WHERE barcode = ? AND used = ?
-    """, (barcode, used_value))
+    """, (barcode, used))
     result = c.fetchone()
 
     if result:
@@ -80,7 +80,7 @@ def process_barcode(barcode: str) -> tuple[str, str, str]:
             UPDATE GameLibrary
             SET quantity = quantity + 1
             WHERE barcode = ? AND used = ?
-        """, (barcode, used_value))
+        """, (barcode, used))
         conn.commit()
     else:
         while True:
@@ -89,8 +89,8 @@ def process_barcode(barcode: str) -> tuple[str, str, str]:
                 break
             print("Game name cannot be empty.")
 
-        while True:
-            system = input("Please enter the game system: ").strip()
+        while not system:
+            system = input("Please enter the game system: ").strip().lower()
             if system:
                 break
             print("Game system cannot be empty.")
@@ -103,27 +103,22 @@ def process_barcode(barcode: str) -> tuple[str, str, str]:
         c.execute("""
             INSERT INTO GameLibrary (name, barcode, system, used)
             VALUES (?, ?, ?, ?)
-        """, (name, barcode, system, used_value))
+        """, (name, barcode, system, used))
         conn.commit()
 
     conn.close()
-    return name, system, used
+    return name, system, quality
 
 
-def input_mode():
+def input_mode(system = "", quality = ""):
     while True:
         barcode = input("Scan a barcode and press Enter, or press Enter to quit: ").strip()
         if not barcode:
             print("Exiting input mode.")
             break
 
-        if not barcode.isdigit():
-            print("Invalid input. Please scan a numeric barcode.")
-            continue
-
-        name, system, used = process_barcode(barcode)
-        condition = "Used" if used == "y" else "New"
-        print(f"Processed: '{name}' for {system}. Condition: {condition}")
+        name, system, quality = process_barcode(barcode, system, quality)
+        print(f"Processed: '{name}' for {system}. Condition: {quality}")
 
 def output_list():
     conn = get_connection()
@@ -143,7 +138,7 @@ def output_list():
         print(f"{'Name':<30} {'System':<20} {'Condition':<10} {'Quantity':<8}")
         for name, system, used, quantity in games:
             condition = "Used" if used == 1 else "Sealed"
-            print(f"{name} ({system}) - {condition} - Quantity: {quantity}")
+            print(f"{name:<30} {system:<20} {condition:<10} {quantity:<8}")
 
     conn.close()
 
@@ -152,19 +147,32 @@ def main():
     while True:
         print("\nMenu:")
         print("1. Input mode (scan barcodes)")
-        print("2. Output list of games")
-        print("3. Remove games from library (not implemented yet)")
-        print("4. Exit")
+        print("2. Input in group (same system, quality, etc.)")
+        print("3. Output list of games")
+        print("4. Remove games from library (not implemented yet)")
+        print("5. Exit")
         choice = input("Select an option: ").strip()
 
         if choice == "1":
             input_mode()
+
         elif choice == "2":
-            output_list()
+            system = input("Please state the system you are inputting, or leave blank for different systems.").strip().lower()
+            while True:
+                quality = input("Please state the quality you are inputting, or leave blank for different quality. Used or Sealed only.").strip().lower()
+                if quality in ["used", "sealed", ""]:
+                    break
+                print("Invalid option, please try again.")
+            input_mode(system, quality)       
+
         elif choice == "3":
-            print("This option is not implemented yet.")
+            output_list()
+
         elif choice == "4":
+            print("This option is not implemented yet.")
+            
+        elif choice == "5":
             print("Exiting program.")
             break
         else:
-            print("Invalid option. Please select 1, 2, or 3.")
+            print("Invalid option. Please select 1, 2, 3, 4, or 5.")
