@@ -53,6 +53,13 @@ def init_db(database: str = "GameLibrary.sqlite"):
     conn.commit()
     conn.close()
 
+def clear_db():
+    if DB_PATH.exists():
+        DB_PATH.unlink()
+        print("Database cleared.")
+    else:
+        print("No database found to clear.")
+
 def input_game(name: str, barcode: str, system: str, used: int):
     conn = get_connection()
     c = conn.cursor()
@@ -83,7 +90,7 @@ def process_barcode(barcode: str, system: str = "", quality: str = "") -> tuple[
     c = conn.cursor()
 
     while not quality:
-        quality = input("Is this game Used or Sealed?").strip().lower()
+        quality = input("Is this game Used or Sealed?\n").strip().lower()
         if quality not in ["used", "sealed"]:
             print("Invalid input. Please enter 'Used' or 'Sealed'.")
             quality = ""
@@ -102,13 +109,13 @@ def process_barcode(barcode: str, system: str = "", quality: str = "") -> tuple[
 
     if not result:
         while True:
-            name = input("Game not found. Please enter the game name: ").strip()
+            name = input("Game not found. Please enter the game name: \n").strip()
             if name:
                 break
             print("Game name cannot be empty.")
 
         while not system:
-            system = input("Please enter the game system: ").strip().lower()
+            system = input("Please enter the game system: \n").strip().lower()
             if system:
                 break
             print("Game system cannot be empty.")
@@ -124,7 +131,7 @@ def process_barcode(barcode: str, system: str = "", quality: str = "") -> tuple[
 
 def input_mode(system = "", quality = ""):
     while True:
-        barcode = input("Scan a barcode and press Enter, or press Enter to quit: ").strip()
+        barcode = input("Scan a barcode and press Enter, or press Enter to quit: \n").strip()
         if not barcode:
             print("Exiting input mode.")
             break
@@ -134,7 +141,7 @@ def input_mode(system = "", quality = ""):
 
 def input_GoUPC():
     while True:
-        barcode = input("Please enter the GoUPC code and press Enter, or press Enter to quit: ").strip()
+        barcode = input("Please enter the GoUPC code and press Enter, or press Enter to quit: \n").strip()
         if not barcode:
             print("Exiting input mode.")
             break
@@ -185,19 +192,21 @@ def main():
         print("2. Input in group (same system, quality, etc.)")
         print("3. Output list of games")
         print("4. Remove games from library (not implemented yet)")
-        print("5. Exit")
+        print("5. Clear database")
+        print("6. Exit")
+        print("\n")
         choice = input("Select an option: ").strip()
 
         if choice == "1":
             input_mode()
 
         elif choice == "2":
-            system = input("Please state the system you are inputting, or leave blank for different systems.").strip().lower()
+            system = input("Please state the system you are inputting, or leave blank for different systems.\n").strip().lower()
             while True:
-                quality = input("Please state the quality you are inputting, or leave blank for different quality. Used or Sealed only.").strip().lower()
+                quality = input("Please state the quality you are inputting, or leave blank for different quality. Used or Sealed only.\n").strip().lower()
                 if quality in ["used", "sealed", ""]:
                     break
-                print("Invalid option, please try again.")
+                print("Invalid option, please try again.\n\n")
             input_mode(system, quality)       
 
         elif choice == "3":
@@ -207,7 +216,16 @@ def main():
             print("This option is not implemented yet.")
             
         elif choice == "5":
+            if input("Are you sure you want to clear the database? This action cannot be undone. (yes/no)\n").strip().lower() == "yes":
+                clear_db()
+            else:
+                print("Database clear cancelled.")
+
+        elif choice == "6":
             print("Exiting program.")
             break
         else:
-            print("Invalid option. Please select 1, 2, 3, 4, or 5.")
+            print("Invalid option. Please select option 1 through 6.\n")
+
+if __name__ == "__main__":
+    main()
