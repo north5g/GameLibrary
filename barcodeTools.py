@@ -1,3 +1,4 @@
+import requests
 import sqlite3
 from pathlib import Path
 
@@ -52,6 +53,31 @@ def init_db(database: str = "GameLibrary.sqlite"):
     conn.commit()
     conn.close()
 
+def input_game(name: str, barcode: str, system: str, used: int):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute(
+        "INSERT OR IGNORE INTO SystemList (system_name) VALUES (?)",
+        (system,)
+    )
+
+    c.execute("""
+        INSERT INTO GameLibrary (name, barcode, system, used)
+        VALUES (?, ?, ?, ?)
+    """, (name, barcode, system, used))
+    conn.commit()
+
+def update_quantity(barcode: str, used: int):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""
+        UPDATE GameLibrary
+        SET quantity = quantity + 1
+        WHERE barcode = ? AND used = ?
+    """, (barcode, used))
+    conn.commit()
+    conn.close()
+
 def process_barcode(barcode: str, system: str = "", quality: str = "") -> tuple[str, str, str]:
     conn = get_connection()
     c = conn.cursor()
@@ -74,15 +100,7 @@ def process_barcode(barcode: str, system: str = "", quality: str = "") -> tuple[
     """, (barcode, used))
     result = c.fetchone()
 
-    if result:
-        name, system, _ = result
-        c.execute("""
-            UPDATE GameLibrary
-            SET quantity = quantity + 1
-            WHERE barcode = ? AND used = ?
-        """, (barcode, used))
-        conn.commit()
-    else:
+    if not result:
         while True:
             name = input("Game not found. Please enter the game name: ").strip()
             if name:
@@ -95,17 +113,11 @@ def process_barcode(barcode: str, system: str = "", quality: str = "") -> tuple[
                 break
             print("Game system cannot be empty.")
 
-        c.execute(
-            "INSERT OR IGNORE INTO SystemList (system_name) VALUES (?)",
-            (system,)
-        )
-
-        c.execute("""
-            INSERT INTO GameLibrary (name, barcode, system, used)
-            VALUES (?, ?, ?, ?)
-        """, (name, barcode, system, used))
-        conn.commit()
-
+        input_game(name, barcode, system, used)
+    else:
+        name, system, _ = result
+        update_quantity(barcode, used)
+        
     conn.close()
     return name, system, quality
 
@@ -118,6 +130,29 @@ def input_mode(system = "", quality = ""):
             break
 
         name, system, quality = process_barcode(barcode, system, quality)
+        print(f"Processed: '{name}' for {system}. Condition: {quality}")
+
+def input_GoUPC():
+    while True:
+        barcode = input("Please enter the GoUPC code and press Enter, or press Enter to quit: ").strip()
+        if not barcode:
+            print("Exiting input mode.")
+            break
+
+        API_KEY = "your_api_key_here"
+
+        response = requests.get(f"https://go-upc.com/api/v1/code/{barcode}?key={API_KEY}")  # Placeholder response
+
+        name = response.json().get("name", "Unknown")
+        system = response.json().get("system", "Unknown")
+        # TODO: Check response, see if json.get("system") is correct
+
+        while not quality:
+            quality = input("Is this game Used or Sealed?").strip().lower()
+            if quality not in ["used", "sealed"]:
+                print("Invalid input. Please enter 'Used' or 'Sealed'.")
+                quality = ""
+
         print(f"Processed: '{name}' for {system}. Condition: {quality}")
 
 def output_list():
