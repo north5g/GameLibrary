@@ -1,8 +1,13 @@
+from multiprocessing import process
+import os
+
+from flask.cli import load_dotenv
 import requests
 import sqlite3
 from pathlib import Path
 
-DB_PATH = Path("GameLibrary.sqlite")
+load_dotenv()
+API_KEY = os.getenv("API_KEY")
 
 
 def get_connection():
@@ -145,8 +150,6 @@ def input_GoUPC():
         if not barcode:
             print("Exiting input mode.")
             break
-
-        API_KEY = "your_api_key_here"
 
         response = requests.get(f"https://go-upc.com/api/v1/code/{barcode}?key={API_KEY}")  # Placeholder response
 
